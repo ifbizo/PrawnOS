@@ -5,7 +5,7 @@
 
 KVER=4.17.2
 TEST_PATCHES=false
-
+WIRELESS_TEST=true
 ROOT_DIR=`pwd`
 RESOURCES=$ROOT_DIR/resources/BuildResources
 
@@ -22,6 +22,8 @@ make mrproper
 # [ "$FRESH" = true ] && for i in $RESOURCES/patches-tested/*.patch; do patch -p1 < $i; done
 [ "$FRESH" = true ] && for i in $RESOURCES/patches-tested/DTS/*.patch; do patch -p1 < $i; done
 [ "$FRESH" = true ] && for i in $RESOURCES/patches-tested/kernel/*.patch; do patch -p1 < $i; done
+#apply the wireless test patches
+[ "$WIRELESS_TEST" = true ] && for i in $RESOURCES/wireless-patches/*.patch; do patch -R -p1 < $i; done
 #Apply all of the rockMyy patches that make sense
 [ "$TEST_PATCHES" = true ] && for i in $RESOURCES/patches-untested/kernel/*.patch; do patch -p1 < $i; done
 [ "$TEST_PATCHES" = true ] && for i in $RESOURCES/patches-untested/DTS/*.patch; do patch -p1 < $i; done
