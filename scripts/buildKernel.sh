@@ -19,7 +19,7 @@
 # along with PrawnOS.  If not, see <https://www.gnu.org/licenses/>.
 
 
-KVER=4.17.2
+KVER=4.9
 TEST_PATCHES=false
 
 ROOT_DIR=`pwd`
@@ -29,13 +29,18 @@ RESOURCES=$ROOT_DIR/resources/BuildResources
 [ ! -d build ] && mkdir build
 cd build
 # build Linux-libre, with ath9k_htc
-[ ! -f linux-libre-$KVER-gnu.tar.lz ] && wget https://www.linux-libre.fsfla.org/pub/linux-libre/releases/$KVER-gnu/linux-libre-$KVER-gnu.tar.lz
+#Download the libre deblobbed kernel and the deblobbed kernel patches
+minor=`wget -q -O- http://linux-libre.fsfla.org/pub/linux-libre/releases/LATEST-$KVER.N/ | grep -F patch-$KVER-gnu | head -n 1 | cut -f 9 -d . | cut -f 1 -d -`
+[ ! -f linux-libre-$KVER-gnu.tar.lz ] && wget http://linux-libre.fsfla.org/pub/linux-libre/releases/LATEST-4.9.0/linux-libre-$KVER-gnu.tar.lz
+[ ! -f patch-$KVER-gnu-$KVER.$minor-gnu ] && wget -O- https://www.linux-libre.fsfla.org/pub/linux-libre/releases/LATEST-$KVER.N/patch-$KVER-gnu-$KVER.$minor-gnu.xz | xz -d > patch-$KVER-gnu-$KVER.$minor-gnu
+# Decompress, patch the kernel
 [ ! -d linux-$KVER ] && tar --lzip -xvf linux-libre-$KVER-gnu.tar.lz && FRESH=true
-cd linux-$KVER
+cd linux-$KVER 
+[ "$FRESH" = true ] && patch -p 1 < ../patch-$KVER-gnu-$KVER.$minor-gnu
 make clean
 make mrproper
 #Apply the usb and mmc patches if unapplied
-[ "$FRESH" = true ] && for i in $RESOURCES/patches-tested/DTS/*.patch; do patch -p1 < $i; done
+# [ "$FRESH" = true ] && for i in $RESOURCES/patches-tested/DTS/*.patch; do patch -p1 < $i; done
 [ "$FRESH" = true ] && for i in $RESOURCES/patches-tested/kernel/*.patch; do patch -p1 < $i; done
 #Apply all of the rockMyy patches that make sense
 [ "$TEST_PATCHES" = true ] && for i in $RESOURCES/patches-untested/kernel/*.patch; do patch -p1 < $i; done

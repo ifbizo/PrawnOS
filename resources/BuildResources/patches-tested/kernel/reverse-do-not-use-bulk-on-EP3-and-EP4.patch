@@ -95,7 +95,7 @@ diff --git a/drivers/net/wireless/ath/ath9k/hif_usb.c b/drivers/net/wireless/ath
  
 +	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, USB_REG_OUT_PIPE),
 -	ret = usb_interrupt_msg(udev, usb_sndintpipe(udev, USB_REG_OUT_PIPE),
- 			   buf, 4, NULL, USB_MSG_TIMEOUT);
+ 			   buf, 4, NULL, HZ);
  	if (ret)
  		dev_err(&udev->dev, "ath9k_htc: USB reboot failed\n");
 
