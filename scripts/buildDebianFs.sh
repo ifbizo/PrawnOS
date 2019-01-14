@@ -19,7 +19,7 @@
 # along with PrawnOS.  If not, see <https://www.gnu.org/licenses/>.
 
 
-KVER=4.17.19
+KVER=4.19.13
 
 #Ensure Sudo
 if [ ! $UID = "0" ]
