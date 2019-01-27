@@ -1,0 +1,30 @@
+From 45c99c0c74725de216dbcb55e6df394adcf86b84 Mon Sep 17 00:00:00 2001
+From: Hal Emmerich <hal@halemmerich.com>
+Date: Tue, 15 Jan 2019 12:48:39 -0600
+Subject: [PATCH] Fix rockchip sound for kernel 4.19
+
+In commit 75b31192fe6ad20b42276b20ee3bdf1493216d63 which can be seen here https://github.com/torvalds/linux/commit/75b31192fe6ad20b42276b20ee3bdf1493216d63
+Rockchip attempted to add configurations to the sound initialization. This broke sound on the rk3288 in the asus C201.
+This patch reverts the core of the change.
+
+Signed-off-by: Hal Emmerich <hal@halemmerich.com>
+---
+ sound/soc/rockchip/rockchip_i2s.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sound/soc/rockchip/rockchip_i2s.c b/sound/soc/rockchip/rockchip_i2s.c
+index 60d43d5..a358426 100644
+--- a/sound/soc/rockchip/rockchip_i2s.c
++++ b/sound/soc/rockchip/rockchip_i2s.c
+@@ -675,7 +675,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
+ 		goto err_suspend;
+ 	}
+ 
+-	ret = rockchip_pcm_platform_register(&pdev->dev);
++	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+ 	if (ret) {
+ 		dev_err(&pdev->dev, "Could not register PCM\n");
+ 		return ret;
+-- 
+2.11.0
+
