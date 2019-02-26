@@ -1,6 +1,12 @@
 #!/bin/sh -xe
 
-KVER=4.17.2
+if [ -z "$1" ]
+then
+    echo "No kernel version supplied"
+    exit 1
+fi
+KVER=$1
+
 ROOT_DIR=`pwd`
 RESOURCES=$ROOT_DIR/resources/BuildResources
 

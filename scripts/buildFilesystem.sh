@@ -19,7 +19,6 @@
 # along with PrawnOS.  If not, see <https://www.gnu.org/licenses/>.
 
 
-KVER=4.19.15
 
 #Ensure Sudo
 if [ ! $UID = "0" ]
@@ -28,6 +27,13 @@ then
     echo "sudo $0 $*"
     exit 1
 fi
+
+if [ -z "$1" ]
+then
+    echo "No kernel version supplied"
+    exit 1
+fi
+KVER=$1
 
 [ ! -d build ] && echo "No build folder found, is the kernel built?" && exit
 
@@ -76,7 +82,7 @@ create_image() {
 }
 
 # create a 3GB image with the Chrome OS partition layout
-create_image PrawnOS-Alpha-c201-libre-2GB.img-base $outdev 50M 40 $outmnt
+create_image PrawnOS-Alpha-c201-libre-2GB.img-BASE $outdev 50M 40 $outmnt
 
 # use default debootstrap mirror if none is specified
 if [ "$PRAWNOS_DEBOOTSTRAP_MIRROR" = "" ]
@@ -99,7 +105,7 @@ chmod +x $outmnt/*.sh
 
 
 #Copy in the test script
-cp $build_resources/wifi-test.sh $outmnt/wifi-test.sh
+cp scripts/InstallScripts/wifi-test.sh $outmnt/wifi-test.sh
 chmod +x $outmnt/wifi-test.sh
 
 #Setup the chroot for apt 
