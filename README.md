@@ -183,6 +183,7 @@ You can use the environment variable `PRAWNOS_SUITE` to use a Debian suite other
 
 You can use the environment variable `PRAWNOS_DEBOOTSTRAP_MIRROR` to use a non-default Debian mirror with debootstrap.  For example, to use [Debian's Tor onion service mirror](https://onion.debian.org/) with debootstrap, you can build with `sudo PRAWNOS_DEBOOTSTRAP_MIRROR=http://vwakviie2ienjx6t.onion/debian make image`.
 
+You can use the environment variable `PRAWNOS_LUKS` to use an encrypted root partition.  For example, you can build with `sudo PRAWNOS_LUKS=yes make image`.  Your password will be initially requested first after the kernel is built and a second time when the kernel is being injected into the filesystem.
 
 ### GPU Support
 

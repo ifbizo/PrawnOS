@@ -1,0 +1,1 @@
+console=tty1 initrd=/boot/initrd.img-SED_KVER cryptopts=source=UUID=SED_ROOT_UUID,target=SED_MAPPER_NAME,cipher=aes-xts:sha256,size=512 root=/dev/mapper/SED_MAPPER_NAME rootfstype=ext4 rootwait ro net.ifnames=0
