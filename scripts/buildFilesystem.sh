@@ -44,18 +44,22 @@ outdev=/dev/loop5
 install_resources=resources/InstallResources
 build_resources=resources/BuildResources
 
+cryptsetup_mapper_name=poscryptroot
+
 #A hacky way to ensure the loops are properly unmounted and the temp files are properly deleted.
 #Without this, a reboot is sometimes required to properly clean the loop devices and ensure a clean build 
 cleanup() {
   set +e
 
-  umount -l $outmnt > /dev/null 2>&1
+  umount -R -l $outmnt > /dev/null 2>&1
+  cryptsetup close $cryptsetup_mapper_name || true
   rmdir $outmnt > /dev/null 2>&1
   losetup -d $outdev > /dev/null 2>&1
 
   set +e
 
-  umount -l $outmnt > /dev/null 2>&1
+  umount -R -l $outmnt > /dev/null 2>&1
+  cryptsetup close $cryptsetup_mapper_name || true
   rmdir $outmnt > /dev/null 2>&1
   losetup -d $outdev > /dev/null 2>&1
 }
@@ -81,6 +85,54 @@ create_image() {
   mount -o noatime ${2}p2 $5
 }
 
+luks_crypt() {
+  while true; do
+    read -p "Password: " password
+    echo
+    read -p "Password (confirmation): " password2
+    echo
+    [ "$password" = "$password2" ] && break || echo "Passwords do not match, try again"
+  done
+
+  echo -n $password | cryptsetup -v --type luks --cipher aes-xts-plain64 --key-size 256 --hash sha256 --use-random luksFormat $1 -
+  echo -n $password | cryptsetup open $1 $2
+}
+
+create_luks_image() {
+  # it's a sparse file - that's how we fit a 16GB image inside a 3GB one
+  dd if=/dev/zero of=$1 bs=$3 count=$4 conv=sparse
+  parted --script $1 mklabel gpt
+  cgpt create $1
+  kernel_start=8192
+  kernel_size=65536
+  cgpt add -i 1 -t kernel -b $kernel_start -s $kernel_size -l Kernel -S 1 -T 5 -P 10 $1
+
+  boot_start=$(($kernel_start + $kernel_size))
+  boot_size=409600 # 200 MB
+  cgpt add -i 2 -t data -b $boot_start -s $boot_size -l Boot $1
+
+  root_start=$(($boot_start + $boot_size))
+  end=`cgpt show $1 | grep 'Sec GPT table' | awk '{print $1}'`
+  root_size=$(($end - $root_start))
+  cgpt add -i 3 -t data -b $root_start -s $root_size -l Root $1
+
+  losetup -P $2 $1
+
+  # encrypt the root partition
+  luks_crypt ${2}p3 $cryptsetup_mapper_name
+
+  # $size is in 512 byte blocks while ext4 uses a block size of 1024 bytes
+  mkfs.ext4 -F -b 1024 -m 0 /dev/mapper/$cryptsetup_mapper_name
+  mkfs.ext4 -F -b 1024 -m 0 ${2}p2 $(($boot_size / 2))
+
+  # mount the / partition
+  mount -o noatime /dev/mapper/$cryptsetup_mapper_name $5
+
+  # mount the /boot partition
+  mkdir -p $5/boot
+  mount -o noatime ${2}p2 $5/boot
+}
+
 # use buster if no suite is specified
 if [ "$PRAWNOS_SUITE" = "" ]
 then
@@ -88,7 +140,12 @@ then
 fi
 
 # create a 2GB image with the Chrome OS partition layout
-create_image PrawnOS-${PRAWNOS_SUITE}-Alpha-c201-libre-2GB.img-BASE $outdev 50M 40 $outmnt
+if [ -z "$PRAWNOS_LUKS" ]
+then
+    create_image PrawnOS-${PRAWNOS_SUITE}-Alpha-c201-libre-2GB.img-BASE $outdev 50M 40 $outmnt
+else
+    create_luks_image PrawnOS-${PRAWNOS_SUITE}-Alpha-c201-libre-2GB.img-BASE $outdev 50M 40 $outmnt
+fi
 
 # use default debootstrap mirror if none is specified
 if [ "$PRAWNOS_DEBOOTSTRAP_MIRROR" = "" ]
@@ -188,11 +245,34 @@ fi
 # #grab firefox from buster or higher, since stretch is broken
 chroot $outmnt apt-get -t $FIREFOX_SUITE install -d -y firefox-esr
 
+if [ ! -z "$PRAWNOS_LUKS" ]
+then
+    chroot $outmnt apt-get install -y cryptsetup u-boot-tools vboot-kernel-utils
+    # cryptsetup bin and initrd hooks (cryptsetup)
+    # mkimage bin (u-boot-tools)
+    # vbutil_kernel bin (vboot-kernel-utils)
+
+    sed -i -E '/^#?CRYPTSETUP=/c\CRYPTSETUP=y' $outmnt/etc/cryptsetup-initramfs/conf-hook
+
+    boot_uuid=$(lsblk -n -o UUID ${outdev}p2 | head -n 1)
+    root_uuid=$(lsblk -n -o NAME,UUID ${outdev}p3 | grep -v $cryptsetup_mapper_name | awk '{print $2}')
+
+    cat > $outmnt/etc/fstab <<EOF
+/dev/mapper/$cryptsetup_mapper_name    /        ext4    defaults,noatime    0       1
+UUID=$boot_uuid                        /boot    ext4    defaults,noatime    0       2
+EOF
+
+    cat > $outmnt/etc/crypttab <<EOF
+$cryptsetup_mapper_name    UUID=$root_uuid    none    luks
+EOF
+fi
+
 #Cleanup hosts
 rm -rf $outmnt/etc/hosts #This is what https://wiki.debian.org/EmDebian/CrossDebootstrap suggests
 echo -n "127.0.0.1        PrawnOS-Alpha" > $outmnt/etc/hosts
 
-umount -l $outmnt > /dev/null 2>&1
+umount -R -l $outmnt > /dev/null 2>&1
+cryptsetup close $cryptsetup_mapper_name || true
 rmdir $outmnt > /dev/null 2>&1
 losetup -d $outdev > /dev/null 2>&1
 echo "DONE!"

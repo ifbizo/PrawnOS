@@ -20,6 +20,10 @@ endif
 OUTNAME=PrawnOS-$(PRAWNOS_SUITE)-Alpha-c201-libre-2GB.img
 BASE=$(OUTNAME)-BASE
 
+ifneq ($(PRAWNOS_LUKS),)
+PRAWNOS_LUKS=yes
+endif
+
 
 #Usage:
 #run make image
